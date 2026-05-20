@@ -1,0 +1,21 @@
+[Unit]
+Description=Talos image factory
+After=network-online.target registry.service
+Wants=network-online.target
+Requires=registry.service
+
+[Container]
+AutoUpdate=registry
+ContainerName=image-factory
+Image=ghcr.io/jfroy/siderolabs/image-factory:latest
+Network=host
+Volume=/etc/image-factory/config.yaml:/config.yaml:ro,z
+Volume=/etc/image-factory/keys:/keys:ro,z
+Volume=/var/image-factory/tmp:/tmp:rw,Z
+Exec=--config /config.yaml
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

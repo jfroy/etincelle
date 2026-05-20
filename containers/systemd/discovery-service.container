@@ -1,0 +1,18 @@
+[Unit]
+Description=Talos discovery service
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+AutoUpdate=registry
+ContainerName=discovery-service
+Image=ghcr.io/siderolabs/discovery-service:latest
+Network=host
+Volume=/var/discovery-service:/var/discovery-service:rw,Z
+Exec=-addr :4000 -landing-addr :4001 -metrics-addr :4002
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

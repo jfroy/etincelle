@@ -1,0 +1,20 @@
+[Unit]
+Description=Caddy reverse proxy
+After=network-online.target discovery-service.service registry.service image-factory.service
+Wants=network-online.target
+
+[Container]
+AutoUpdate=registry
+ContainerName=caddy
+Image=ghcr.io/jfroy/caddy-etincelle:latest
+Network=host
+Volume=/etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,z
+Volume=/var/caddy/data:/data:rw,Z
+Volume=/var/caddy/config:/config:rw,Z
+EnvironmentFile=/etc/etincelle/secrets/caddy.env
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
