@@ -1,0 +1,15 @@
+{
+	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+}
+
+ds.etincelle.cloud {
+	reverse_proxy h2c://localhost:4000
+}
+
+registry.etincelle.cloud {
+	reverse_proxy localhost:5000
+}
+
+tif.etincelle.cloud {
+	reverse_proxy localhost:8080
+}
