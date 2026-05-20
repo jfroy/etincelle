@@ -9,6 +9,7 @@ on:
       - caddy/Caddyfile
       - image-factory/config.yaml
       - registry/config.yml
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/jfroy/etincelle
@@ -30,10 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set platform env
+      - name: Set platform pair
+        id: platform
         run: |
           platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+          echo "pair=${platform//\//-}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/login-action@v3
         with:
@@ -61,7 +63,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: digests-bootc-${{ env.PLATFORM_PAIR }}
+          name: digests-bootc-${{ steps.platform.outputs.pair }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
