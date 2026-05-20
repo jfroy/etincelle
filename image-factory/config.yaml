@@ -1,0 +1,35 @@
+artifacts:
+  installer:
+    internal:
+      insecure: true
+      registry: localhost:5000
+      repository: installer
+  refreshInterval: 5m0s
+  schematic:
+    insecure: true
+    registry: localhost:5000
+    repository: schematics
+  talosVersionRecheckInterval: 15m0s
+build:
+  maxConcurrency: 1
+  minTalosVersion: 1.12.0
+cache:
+  oci:
+    insecure: true
+    registry: localhost:5000
+    repository: cache
+  schematic:
+    capacity: 10
+    negativeTTL: 30s
+  signingKeyPath: /keys/image-factory.pem
+http:
+  allowedOrigins:
+    - "*"
+  externalURL: https://tif.etincelle.cloud/
+  httpListenAddr: :8080
+secureBoot:
+  enabled: true
+  file:
+    pcrKeyPath: /keys/pcr-signing-key.pem
+    signingCertPath: /keys/uki-signing-cert.pem
+    signingKeyPath: /keys/uki-signing-key.pem
