@@ -1,0 +1,42 @@
+{
+    "default": [
+        {
+            "type": "insecureAcceptAnything"
+        }
+    ],
+    "transports": {
+        "docker": {
+            "ghcr.io/jfroy/etincelle": [
+                {
+                    "type": "sigstoreSigned",
+                    "fulcio": {
+                        "caPath": "/etc/pki/sigstore/roots/fulcio_v1.crt.pem",
+                        "oidcIssuer": "https://token.actions.githubusercontent.com",
+                        "subjectEmail": "https://github.com/jfroy/etincelle/.github/workflows/bootc.yml@refs/heads/main"
+                    },
+                    "rekorPublicKeyPath": "/etc/pki/sigstore/roots/rekor.pub",
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
+            "ghcr.io/jfroy/caddy-etincelle": [
+                {
+                    "type": "sigstoreSigned",
+                    "fulcio": {
+                        "caPath": "/etc/pki/sigstore/roots/fulcio_v1.crt.pem",
+                        "oidcIssuer": "https://token.actions.githubusercontent.com",
+                        "subjectEmail": "https://github.com/jfroy/etincelle/.github/workflows/caddy.yml@refs/heads/main"
+                    },
+                    "rekorPublicKeyPath": "/etc/pki/sigstore/roots/rekor.pub",
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ]
+        },
+        "docker-daemon": {
+            "": [{"type": "insecureAcceptAnything"}]
+        }
+    }
+}
