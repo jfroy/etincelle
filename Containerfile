@@ -2,9 +2,6 @@ FROM quay.io/fedora/fedora-bootc:42
 
 # Container runtime configuration
 COPY containers/policy.json /etc/containers/policy.json
-COPY containers/registries.conf /etc/containers/registries.conf
-COPY containers/registries.conf.d/ /etc/containers/registries.conf.d/
-COPY containers/registries.d/ /etc/containers/registries.d/
 
 # Quadlet service definitions
 COPY containers/systemd/ /etc/containers/systemd/
