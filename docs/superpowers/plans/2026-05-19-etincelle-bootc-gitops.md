@@ -26,6 +26,8 @@
 | `containers/systemd/nginx-proxy-manager.container` | Delete | Replaced by caddy |
 | `image-factory/keys/*.pem` | Delete + gitignore | Secrets must not be in repo |
 | `scripts/provision-secrets.sh` | Create | Post-install secret placement helper |
+| `Taskfile.yml` | Create | go-task entry points: `bake` (build qcow2) and `provision` (run secrets script) |
+| `image-builder/config.toml` | Create | Install-time customizations (user, SSH key) |
 | `.github/workflows/caddy.yml` | Create | Caddy image CI/CD |
 | `.github/workflows/bootc.yml` | Create | OS image CI/CD |
 | `etincelle.bu` | Delete | Replaced by bootc |
@@ -59,6 +61,9 @@ rmdir image-factory/keys
 ```
 # image-factory PEM keys — provisioned post-install, never committed
 image-factory/keys/
+
+# bootc-image-builder output (qcow2, manifests, etc.) — built locally, never committed
+output/
 ```
 
 Save as `.gitignore` at repo root.
@@ -792,13 +797,183 @@ Expected: `Verification for ghcr.io/jfroy/...:latest -- The following checks wer
 
 ---
 
+## Task 10: Build qcow2 Disk Image and Cut Over the VM
+
+**Files:**
+- Create: `image-builder/config.toml`
+- Create: `Taskfile.yml`
+
+This task uses `bootc-image-builder` (driven by go-task) to convert the published OCI image into a bootable qcow2, then replaces the existing VM's boot disk. The existing etincelle VM is stateless — registry cache, discovery-service DB, and Caddy ACME state all rebuild from scratch — so a clean reinstall is the path.
+
+Prerequisites:
+- The `bootc OS Image` workflow from Task 7 has run successfully, so `ghcr.io/jfroy/etincelle:latest` exists and is signed.
+- The local host has `podman` ≥ 5.0, `task` (https://taskfile.dev), and root (`sudo`) — `bootc-image-builder` requires `--privileged`.
+- 1Password CLI (`op`) signed in, for `provision-secrets.sh`.
+
+- [ ] **Step 1: Create image-builder/config.toml**
+
+`quay.io/fedora/fedora-bootc:42` ships with only `root` — there is no default unprivileged user. We create `fedora` (matches Fedora's general cloud-image convention) via bootc-image-builder. The SSH public key is public information and is fine to commit.
+
+```toml
+[[customizations.user]]
+name = "fedora"
+groups = ["wheel"]
+key = "ssh-ed25519 AAAA...REPLACE_ME... jfroy@workstation"
+
+[customizations.kernel]
+append = "console=ttyS0,115200n8 console=tty0"
+```
+
+Notes:
+- Replace `key = "..."` with your actual `~/.ssh/id_ed25519.pub` contents before committing.
+- Serial-console kernel args are harmless and convenient if your hypervisor exposes a serial console.
+- No password is set — SSH key only. `wheel` group gives passwordless `sudo` via bootc defaults.
+- If you'd rather use a different login name, change `name = "fedora"` and run subsequent `task provision` invocations with `SSH_USER=<name>`.
+
+- [ ] **Step 2: Create Taskfile.yml**
+
+```yaml
+version: '3'
+
+vars:
+  IMAGE: ghcr.io/jfroy/etincelle:latest
+  OUTPUT_DIR: '{{.ROOT_DIR}}/output'
+  CONFIG: '{{.ROOT_DIR}}/image-builder/config.toml'
+  BUILDER_IMAGE: quay.io/centos-bootc/bootc-image-builder:latest
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  bake:
+    desc: 'Build a bootable qcow2 from the bootc image (override with IMAGE=...)'
+    preconditions:
+      - sh: 'test -f {{.CONFIG}}'
+        msg: '{{.CONFIG}} not found — see plan Task 10 Step 1'
+      - sh: 'command -v podman >/dev/null'
+        msg: 'podman not found in PATH'
+    cmds:
+      - mkdir -p {{.OUTPUT_DIR}}
+      - |
+        sudo podman run --rm -it --privileged \
+          --pull=newer \
+          --security-opt label=type:unconfined_t \
+          -v {{.OUTPUT_DIR}}:/output \
+          -v {{.CONFIG}}:/config.toml:ro \
+          {{.BUILDER_IMAGE}} \
+          --type qcow2 \
+          --rootfs xfs \
+          {{.IMAGE}}
+      - ls -lh {{.OUTPUT_DIR}}/qcow2/disk.qcow2
+
+  provision:
+    desc: 'Provision secrets on a fresh VM (HOST=<ip-or-host> [SSH_USER=fedora])'
+    requires:
+      vars: [HOST]
+    env:
+      SSH_USER: '{{.SSH_USER | default "fedora"}}'
+    cmds:
+      - ./scripts/provision-secrets.sh {{.HOST}}
+
+  clean:
+    desc: Remove built disk images
+    cmds:
+      - rm -rf {{.OUTPUT_DIR}}
+```
+
+- [ ] **Step 3: Verify Taskfile syntax**
+
+```bash
+task --list
+```
+
+Expected: prints `bake`, `clean`, `default`, `provision` with their descriptions.
+
+- [ ] **Step 4: Build the qcow2**
+
+```bash
+task bake
+```
+
+Expected: `bootc-image-builder` pulls the image, runs through manifest/depsolve/image stages (3-8 minutes depending on cache state), emits `output/qcow2/disk.qcow2`, and prints its size. Typical size: 2-3 GiB sparse.
+
+To bake a non-`:latest` digest:
+
+```bash
+task bake IMAGE=ghcr.io/jfroy/etincelle@sha256:abc123...
+```
+
+- [ ] **Step 5: Stage the qcow2 on your hypervisor and cut over**
+
+This is hypervisor-specific and intentionally not scripted here. The high-level sequence is:
+
+1. Shut down the existing etincelle VM cleanly.
+2. Detach (or snapshot/rename) the existing disk so it remains as a rollback option.
+3. Upload `output/qcow2/disk.qcow2` to your VM storage and attach it as the new boot disk.
+4. (Optional) Resize the disk before first boot if you want more headroom — bootc + xfs grow into available space on first boot.
+5. Boot the VM. Expect ~30s to reach the systemd default target; `fedora@<vm-ip>` should be SSH-reachable using the key from `image-builder/config.toml`.
+
+- [ ] **Step 6: Verify the booted system**
+
+```bash
+ssh fedora@<vm-ip> '
+  set -e
+  bootc status
+  systemctl is-system-running --wait || true
+  systemctl list-units --state=failed
+'
+```
+
+Expected:
+- `bootc status` shows `Booted: ghcr.io/jfroy/etincelle:latest` with the digest matching the published manifest.
+- `systemctl is-system-running` returns `running` or `degraded` (the latter is fine on first boot — `caddy.service` and `image-factory.service` will be failing because secrets aren't provisioned yet).
+- No unexpected failed units beyond those two.
+
+- [ ] **Step 7: Provision secrets**
+
+```bash
+task provision HOST=<vm-ip>
+```
+
+The `provision-secrets.sh` script pulls the image-factory keys and Cloudflare API token from 1Password, drops them onto the VM, and starts `caddy.service` + `image-factory.service`.
+
+- [ ] **Step 8: End-to-end smoke test**
+
+```bash
+ssh fedora@<vm-ip> sudo systemctl status \
+    caddy.service registry.service image-factory.service discovery-service.service
+ssh fedora@<vm-ip> sudo podman logs --tail 50 caddy
+curl -sI https://registry.etincelle.cloud/v2/
+curl -sI https://tif.etincelle.cloud/
+curl -sI https://ds.etincelle.cloud/
+```
+
+Expected:
+- All four `.service` units `active (running)`.
+- Caddy logs show Let's Encrypt DNS-01 success for the three hostnames.
+- All three `curl -I` calls return a normal HTTP response (TLS handshake + reverse-proxy succeed; an upstream 4xx is fine — we're checking the proxy layer, not application semantics).
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add image-builder/ Taskfile.yml
+git commit -m "feat: add bootc-image-builder config and Taskfile for image bake + provisioning"
+```
+
+The old VM disk can be deleted once the new VM has been running cleanly for a day or two.
+
+---
+
 ## Post-Deployment Notes
 
-After `bootc install` on the VM:
+Once the cutover in Task 10 is complete:
 
-1. Run `./scripts/provision-secrets.sh <vm-ip>` from the machine holding the PEM keys.
-2. SSH in and verify services: `sudo systemctl status caddy.service registry.service image-factory.service discovery-service.service`
-3. Check Caddy obtained certs: `sudo podman logs caddy` — should show Let's Encrypt DNS-01 challenge success.
-4. Test routes: `curl -I https://registry.etincelle.cloud/v2/` `curl -I https://tif.etincelle.cloud/`
-
-The VM will auto-update the OS image via `bootc-fetch-apply-updates.timer` on each push to main. Container images auto-update via `podman-auto-update.timer`.
+- The VM auto-updates the OS image via `bootc-fetch-apply-updates.timer` on each push to `main`. Default cadence is checked every ~1h with a reboot when a new image is staged; adjust `/etc/systemd/system/bootc-fetch-apply-updates.timer.d/override.conf` post-install if you want a maintenance window.
+- Container images (caddy, discovery-service, image-factory, registry) auto-update via `podman-auto-update.timer` (daily).
+- Subsequent OS changes follow the gitops loop: edit, `git push`, wait for the `bootc OS Image` workflow, wait for the timer. No manual `bootc switch` needed once the VM is on `ghcr.io/jfroy/etincelle:latest`.
+- For an out-of-band emergency update: `ssh core@<vm-ip> sudo bootc upgrade --apply`.
+- To roll back to the previous image: `ssh core@<vm-ip> sudo bootc rollback && sudo systemctl reboot`.
+- To rebuild and reflash the VM from scratch (e.g., after a disk loss), repeat Task 10 — the qcow2 build is fully reproducible from `ghcr.io/jfroy/etincelle:latest` + `image-builder/config.toml`.

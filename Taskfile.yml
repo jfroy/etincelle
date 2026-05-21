@@ -1,0 +1,49 @@
+version: '3'
+
+vars:
+  IMAGE: ghcr.io/jfroy/etincelle:latest
+  OUTPUT_DIR: '{{.ROOT_DIR}}/output'
+  CONFIG: '{{.ROOT_DIR}}/image-builder/config.toml'
+  BUILDER_IMAGE: quay.io/centos-bootc/bootc-image-builder:latest
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  bake:
+    desc: 'Build a bootable qcow2 from the bootc image (override with IMAGE=...)'
+    preconditions:
+      - sh: 'test -f {{.CONFIG}}'
+        msg: '{{.CONFIG}} not found — copy image-builder/config.toml.example and add your SSH key'
+      - sh: 'command -v podman >/dev/null'
+        msg: 'podman not found in PATH'
+    cmds:
+      - mkdir -p {{.OUTPUT_DIR}}
+      - |
+        sudo podman run --rm -it --privileged \
+          --pull=newer \
+          --security-opt label=type:unconfined_t \
+          -v {{.OUTPUT_DIR}}:/output \
+          -v {{.CONFIG}}:/config.toml:ro \
+          {{.BUILDER_IMAGE}} \
+          --type qcow2 \
+          --rootfs xfs \
+          {{.IMAGE}}
+      - ls -lh {{.OUTPUT_DIR}}/qcow2/disk.qcow2
+
+  provision:
+    desc: 'Provision secrets on a fresh VM (HOST=<ip-or-host> [SSH_USER=fedora])'
+    requires:
+      vars: [HOST]
+    env:
+      SSH_USER: '{{.SSH_USER | default "fedora"}}'
+    cmds:
+      - ./scripts/provision-secrets.sh {{.HOST}}
+
+  clean:
+    desc: Remove built disk images
+    cmds:
+      - rm -rf {{.OUTPUT_DIR}}
