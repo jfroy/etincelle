@@ -1,0 +1,4 @@
+[[customizations.user]]
+name = "etincelle"
+groups = ["wheel"]
+key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJtpt7e6gXnT2ZH0X79w/Pr9lb087C6vw3Rx29t4CZyp"
