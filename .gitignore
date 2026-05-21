@@ -1,3 +1,4 @@
 # image-factory PEM keys — provisioned post-install, never committed
 .claude/
 image-factory/keys/
+output/

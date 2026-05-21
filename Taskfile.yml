@@ -3,7 +3,7 @@ version: '3'
 vars:
   IMAGE: ghcr.io/jfroy/etincelle:latest
   OUTPUT_DIR: '{{.ROOT_DIR}}/output'
-  CONFIG: '{{.ROOT_DIR}}/image-builder/config.toml'
+  CONFIG: '{{.ROOT_DIR}}/config.toml'
   BUILDER_IMAGE: quay.io/centos-bootc/bootc-image-builder:latest
 
 tasks:
@@ -28,9 +28,11 @@ tasks:
           --security-opt label=type:unconfined_t \
           -v {{.OUTPUT_DIR}}:/output \
           -v {{.CONFIG}}:/config.toml:ro \
+          -v /var/lib/containers/storage:/var/lib/containers/storage \
           {{.BUILDER_IMAGE}} \
           --type qcow2 \
           --rootfs xfs \
+          --use-librepo=True \
           {{.IMAGE}}
       - ls -lh {{.OUTPUT_DIR}}/qcow2/disk.qcow2
 
