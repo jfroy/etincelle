@@ -44,7 +44,7 @@ tasks:
       - ls -lh {{.OUTPUT_DIR}}/qcow2/disk.qcow2
 
   provision:
-    desc: 'Provision secrets on a fresh VM (HOST=<ip-or-host> [SSH_USER=fedora])'
+    desc: 'Provision secrets on a fresh VM (HOST=<ip-or-host> [SSH_USER=etincelle] [TS_AUTHKEY=...])'
     requires:
       vars: [HOST]
     env:

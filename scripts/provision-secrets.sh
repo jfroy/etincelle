@@ -2,7 +2,8 @@
 # One-time post-install secret provisioning for etincelle.
 # Reads secrets from 1Password (requires `op` CLI, active session).
 # Usage: ./scripts/provision-secrets.sh <hostname-or-ip>
-#   SSH_USER (env, default: etincelle) — SSH login user on the target VM
+#   SSH_USER   (env, default: etincelle) — SSH login user on the target VM
+#   TS_AUTHKEY (env, optional)           — Tailscale auth key; prompted if unset
 set -euo pipefail
 
 HOST="${1:?Usage: $0 <hostname-or-ip>}"
@@ -37,4 +38,19 @@ echo "    Done."
 
 echo "==> Starting services..."
 $SSH sudo systemctl start caddy.service image-factory.service
+echo "    Done."
+
+echo "==> Joining Tailscale..."
+if [[ -z "${TS_AUTHKEY:-}" ]]; then
+    read -rsp "    Tailscale auth key (empty to skip): " TS_AUTHKEY
+    echo
+fi
+if [[ -n "${TS_AUTHKEY:-}" ]]; then
+    $SSH sudo tailscale up --auth-key="${TS_AUTHKEY}"
+    unset TS_AUTHKEY
+    echo "    Done."
+else
+    echo "    Skipped (run 'sudo tailscale up' on the host to authenticate later)."
+fi
+
 echo "==> Done."

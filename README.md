@@ -53,19 +53,22 @@ One-time install on a fresh VM:
    ssh etincelle@<vm-ip>
    ```
 
-4. **Provision secrets.** Requires the [1Password CLI](https://developer.1password.com/docs/cli/) signed in to the `kantai` vault on the workstation running the task:
+4. **Provision secrets and join Tailscale.** Requires the [1Password CLI](https://developer.1password.com/docs/cli/) signed in to the `kantai` vault on the workstation running the task:
 
    ```sh
-   task provision HOST=<vm-ip> SSH_USER=etincelle
+   task provision HOST=<vm-ip>
    ```
 
-   This installs `/etc/image-factory/keys/*` and `/etc/etincelle/secrets/caddy.env` on the VM, then starts `caddy.service` and `image-factory.service`.
+   This installs `/etc/image-factory/keys/*` and `/etc/etincelle/secrets/caddy.env` on the VM, starts `caddy.service` and `image-factory.service`, then prompts for a Tailscale auth key and runs `tailscale up`. Pass the key non-interactively with `TS_AUTHKEY=tskey-...`; submit an empty key to skip.
 
 Ongoing updates are automatic: pushes to `main` build a new image via GitHub Actions, and `bootc-fetch-apply-updates.timer` on the VM applies it on the next interval (reboots into the new deployment).
 
-## Secrets
+## Secrets and host state
 
 Provisioned post-install by `scripts/provision-secrets.sh`, never committed to this repo:
 
 - `/etc/image-factory/keys/` — Talos image factory signing keys
 - `/etc/etincelle/secrets/caddy.env` — Cloudflare API token for ACME DNS challenge
+- `/var/lib/tailscale/` — Tailscale node identity (created on first `tailscale up`)
+
+The image grants passwordless `sudo` to the `wheel` group via `/etc/sudoers.d/wheel-nopasswd`, so the user defined in `config.toml` (currently `etincelle`) can run privileged commands without a password.
