@@ -1,18 +1,9 @@
 FROM quay.io/fedora/fedora-bootc:42
 
-# Container runtime configuration
+# Container runtime configuration. Image signature verification is currently
+# disabled for ghcr.io/jfroy/* images; see issue tracking re-enablement once
+# containers/container-libs#625 (buildSignerURI) lands.
 COPY containers/policy.json /etc/containers/policy.json
-
-# Enable sigstore attachment lookup so cosign-style signatures attached as OCI
-# artifacts (sha256-<digest>.sig) are discovered during pull. Default
-# containers/image behavior only checks the legacy lookaside path.
-COPY system/registries.d/sigstore-attachments.yaml /etc/containers/registries.d/sigstore-attachments.yaml
-
-# Sigstore public-good trust roots (refreshed on every image build).
-# Referenced by /etc/containers/policy.json for keyless verification.
-RUN mkdir -p /etc/pki/sigstore/roots && \
-    curl -fsSL -o /etc/pki/sigstore/roots/fulcio_v1.crt.pem https://fulcio.sigstore.dev/api/v1/rootCert && \
-    curl -fsSL -o /etc/pki/sigstore/roots/rekor.pub https://rekor.sigstore.dev/api/v1/log/publicKey
 
 # Quadlet service definitions
 COPY containers/systemd/ /etc/containers/systemd/

@@ -1,3 +1,0 @@
-docker:
-  ghcr.io:
-    use-sigstore-attachments: true
