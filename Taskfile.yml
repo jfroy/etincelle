@@ -5,6 +5,11 @@ vars:
   OUTPUT_DIR: '{{.ROOT_DIR}}/output'
   CONFIG: '{{.ROOT_DIR}}/config.toml'
   BUILDER_IMAGE: quay.io/centos-bootc/bootc-image-builder:latest
+  # Linux: rootless build via bootc-image-builder's --in-vm KVM mode.
+  # macOS: rootful podman machine (run `podman machine set --rootful` first);
+  #        rootless --in-vm cannot access KVM inside Apple's hypervisor.
+  STORAGE_SRC: '{{if eq OS "darwin"}}/var/lib/containers/storage{{else}}$HOME/.local/share/containers/storage{{end}}'
+  IN_VM: '{{if eq OS "darwin"}}{{else}}--in-vm{{end}}'
 
 tasks:
   default:
@@ -22,14 +27,16 @@ tasks:
         msg: 'podman not found in PATH'
     cmds:
       - mkdir -p {{.OUTPUT_DIR}}
+      - podman pull {{.IMAGE}}
+      - podman pull {{.BUILDER_IMAGE}}
       - |
-        sudo podman run --rm -it --privileged \
-          --pull=newer \
+        podman run --rm -it --privileged \
           --security-opt label=type:unconfined_t \
           -v {{.OUTPUT_DIR}}:/output \
           -v {{.CONFIG}}:/config.toml:ro \
-          -v /var/lib/containers/storage:/var/lib/containers/storage \
+          -v {{.STORAGE_SRC}}:/var/lib/containers/storage \
           {{.BUILDER_IMAGE}} \
+          {{.IN_VM}} \
           --type qcow2 \
           --rootfs xfs \
           --use-librepo=True \
