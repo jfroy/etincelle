@@ -2,11 +2,11 @@
 # One-time post-install secret provisioning for etincelle.
 # Reads secrets from 1Password (requires `op` CLI, active session).
 # Usage: ./scripts/provision-secrets.sh <hostname-or-ip>
-#   SSH_USER (env, default: fedora) — SSH login user on the target VM
+#   SSH_USER (env, default: etincelle) — SSH login user on the target VM
 set -euo pipefail
 
 HOST="${1:?Usage: $0 <hostname-or-ip>}"
-SSH_USER="${SSH_USER:-fedora}"
+SSH_USER="${SSH_USER:-etincelle}"
 SSH="ssh ${SSH_USER}@${HOST}"
 
 echo "==> Provisioning secrets on ${HOST}"

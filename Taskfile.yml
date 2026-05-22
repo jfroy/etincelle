@@ -48,7 +48,7 @@ tasks:
     requires:
       vars: [HOST]
     env:
-      SSH_USER: '{{.SSH_USER | default "fedora"}}'
+      SSH_USER: '{{.SSH_USER | default "etincelle"}}'
     cmds:
       - ./scripts/provision-secrets.sh {{.HOST}}
 
