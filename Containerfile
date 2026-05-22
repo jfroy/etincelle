@@ -17,6 +17,9 @@ RUN mkdir -p /etc/pki/sigstore/roots && \
 # Quadlet service definitions
 COPY containers/systemd/ /etc/containers/systemd/
 
+# Create /var data directories at boot (bootc/ostree resets /var per deployment).
+COPY system/tmpfiles.d/etincelle.conf /usr/lib/tmpfiles.d/etincelle.conf
+
 # Service configurations (managed via git, baked into image)
 COPY caddy/Caddyfile /etc/caddy/Caddyfile
 COPY image-factory/config.yaml /etc/image-factory/config.yaml
