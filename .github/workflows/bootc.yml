@@ -6,9 +6,11 @@ on:
     paths:
       - Containerfile
       - containers/**
+      - system/**
       - caddy/Caddyfile
       - image-factory/config.yaml
       - registry/config.yml
+      - .github/workflows/bootc.yml
   workflow_dispatch:
 
 env:
