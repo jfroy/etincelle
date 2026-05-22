@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - caddy/Containerfile
+      - caddy/**
+      - .github/workflows/caddy.yml
   workflow_dispatch:
 
 env:
@@ -99,4 +100,4 @@ jobs:
         run: |
           DIGEST=$(docker buildx imagetools inspect ${{ env.IMAGE }}:latest \
             --format '{{.Manifest.Digest}}')
-          cosign sign --yes "${{ env.IMAGE }}@${DIGEST}"
+          cosign sign --yes --recursive "${{ env.IMAGE }}@${DIGEST}"

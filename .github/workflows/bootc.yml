@@ -103,4 +103,4 @@ jobs:
         run: |
           DIGEST=$(docker buildx imagetools inspect ${{ env.IMAGE }}:latest \
             --format '{{.Manifest.Digest}}')
-          cosign sign --yes "${{ env.IMAGE }}@${DIGEST}"
+          cosign sign --yes --recursive "${{ env.IMAGE }}@${DIGEST}"
