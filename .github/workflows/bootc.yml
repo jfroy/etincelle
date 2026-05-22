@@ -99,7 +99,7 @@ jobs:
             --tag ${{ env.IMAGE }}:latest \
             $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign manifest
         run: |
