@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora-bootc:42
+FROM quay.io/fedora/fedora-bootc:45
 
 # Container runtime configuration. Image signature verification is currently
 # disabled for ghcr.io/jfroy/* images; see issue tracking re-enablement once
