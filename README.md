@@ -11,9 +11,61 @@ Bootstrap utility server for the [flatops](https://github.com/jfroy/flatops) Kub
 | [Distribution registry](https://github.com/distribution/distribution) | OCI registry used as image factory artifact cache (`registry.etincelle.cloud`) |
 | [Caddy](https://caddyserver.com) | Reverse proxy with automatic TLS via Cloudflare DNS-01 |
 
+## Build
+
+Produces a bootable qcow2 from the current `Containerfile` via [bootc-image-builder](https://github.com/osbuild/bootc-image-builder). Output lands at `output/qcow2/disk.qcow2` (10 GiB virtual, ~1.2 GiB sparse).
+
+Prerequisites:
+
+- `podman`, `qemu-img`, `go-task`
+- **Linux**: SELinux-enforcing hosts need `osbuild-selinux` installed. The build runs rootless (no `sudo`) using bootc-image-builder's `--in-vm` KVM mode, so `/dev/kvm` must be accessible to the invoking user.
+- **macOS**: rootful `podman machine` is required (rootless `--in-vm` cannot reach KVM inside Apple's hypervisor):
+
+  ```sh
+  podman machine init --cpus 2 --memory 2048 --disk-size 40
+  podman machine set --rootful
+  podman machine start
+  ```
+
+Build:
+
+```sh
+task bake
+```
+
+The bake task pulls `ghcr.io/jfroy/etincelle:latest` for the host architecture (amd64 or arm64; the GitHub Actions workflow publishes both) and builds a matching qcow2.
+
+## Deploy
+
+One-time install on a fresh VM:
+
+1. **(Optional) Resize the qcow2** before first boot. The image ships at 10 GiB; the root partition auto-grows to fill the disk on first boot via `systemd-growfs`, but the underlying disk must be enlarged first:
+
+   ```sh
+   qemu-img resize output/qcow2/disk.qcow2 100G
+   ```
+
+2. **Boot the VM.** Any UEFI-capable hypervisor works (UTM on Apple Silicon, `virt-install`/libvirt on Linux, etc.). The image has no BIOS fallback — UEFI is required.
+
+3. **SSH in** as the user defined in `config.toml` (currently `etincelle`). The key in `config.toml` is the only authorized credential; there is no console login or password.
+
+   ```sh
+   ssh etincelle@<vm-ip>
+   ```
+
+4. **Provision secrets.** Requires the [1Password CLI](https://developer.1password.com/docs/cli/) signed in to the `kantai` vault on the workstation running the task:
+
+   ```sh
+   task provision HOST=<vm-ip> SSH_USER=etincelle
+   ```
+
+   This installs `/etc/image-factory/keys/*` and `/etc/etincelle/secrets/caddy.env` on the VM, then starts `caddy.service` and `image-factory.service`.
+
+Ongoing updates are automatic: pushes to `main` build a new image via GitHub Actions, and `bootc-fetch-apply-updates.timer` on the VM applies it on the next interval (reboots into the new deployment).
+
 ## Secrets
 
-Provisioned once post-install via `scripts/provision-secrets.sh`. Never committed to this repo:
+Provisioned post-install by `scripts/provision-secrets.sh`, never committed to this repo:
 
 - `/etc/image-factory/keys/` — Talos image factory signing keys
 - `/etc/etincelle/secrets/caddy.env` — Cloudflare API token for ACME DNS challenge
