@@ -1,0 +1,27 @@
+[Unit]
+Description=Beszel monitoring agent
+After=network-online.target podman.socket
+Wants=network-online.target
+Requires=podman.socket
+
+[Container]
+AutoUpdate=registry
+ContainerName=beszel-agent
+Image=docker.io/henrygd/beszel-agent:latest
+Network=host
+# Allow access to the Podman socket under SELinux. See
+# https://github.com/henrygd/beszel-docs/issues/45
+SecurityLabelType=container_runtime_t
+Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro
+Volume=/var/beszel-agent:/var/lib/beszel-agent:rw,Z
+Environment=DOCKER_HOST=unix:///run/podman/podman.sock
+Environment=LISTEN=45876
+Environment=HUB_URL=https://beszel.kantai.xyz
+Environment="KEY=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILRqyUxqKPErNtELu2zejko5/OQasEaMXD9tohiciTjO"
+EnvironmentFile=/etc/etincelle/secrets/beszel-agent.env
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

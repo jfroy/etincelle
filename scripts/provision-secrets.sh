@@ -36,8 +36,16 @@ $SSH sudo chmod 600 /etc/etincelle/secrets/caddy.env
 unset CF_TOKEN
 echo "    Done."
 
+echo "--> Setting Beszel agent token..."
+BESZEL_TOKEN=$(op read "op://kantai/beszel-etincelle/TOKEN")
+printf 'TOKEN=%s\n' "${BESZEL_TOKEN}" \
+    | $SSH "sudo tee /etc/etincelle/secrets/beszel-agent.env > /dev/null"
+$SSH sudo chmod 600 /etc/etincelle/secrets/beszel-agent.env
+unset BESZEL_TOKEN
+echo "    Done."
+
 echo "==> Starting services..."
-$SSH sudo systemctl start caddy.service image-factory.service
+$SSH sudo systemctl start caddy.service image-factory.service beszel-agent.service
 echo "    Done."
 
 echo "==> Joining Tailscale..."

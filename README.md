@@ -10,6 +10,7 @@ Bootstrap utility server for the [flatops](https://github.com/jfroy/flatops) Kub
 | [Talos image factory](https://github.com/siderolabs/image-factory) | Builds custom Talos OS images for cluster nodes (`tif.etincelle.cloud`) |
 | [Distribution registry](https://github.com/distribution/distribution) | OCI registry used as image factory artifact cache (`registry.etincelle.cloud`) |
 | [Caddy](https://caddyserver.com) | Reverse proxy with automatic TLS via Cloudflare DNS-01 |
+| [Beszel agent](https://beszel.dev) | System and container metrics agent reporting to an external hub |
 
 ## Build
 
@@ -59,7 +60,7 @@ One-time install on a fresh VM:
    task provision HOST=<vm-ip>
    ```
 
-   This installs `/etc/image-factory/keys/*` and `/etc/etincelle/secrets/caddy.env` on the VM, starts `caddy.service` and `image-factory.service`, then prompts for a Tailscale auth key and runs `tailscale up`. Pass the key non-interactively with `TS_AUTHKEY=tskey-...`; submit an empty key to skip.
+   This installs `/etc/image-factory/keys/*`, `/etc/etincelle/secrets/caddy.env`, and `/etc/etincelle/secrets/beszel-agent.env` on the VM, starts `caddy.service`, `image-factory.service`, and `beszel-agent.service`, then prompts for a Tailscale auth key and runs `tailscale up`. Pass the key non-interactively with `TS_AUTHKEY=tskey-...`; submit an empty key to skip.
 
 Ongoing updates are automatic: pushes to `main` build a new image via GitHub Actions, and `bootc-fetch-apply-updates.timer` on the VM applies it on the next interval (reboots into the new deployment).
 
@@ -69,6 +70,7 @@ Provisioned post-install by `scripts/provision-secrets.sh`, never committed to t
 
 - `/etc/image-factory/keys/` — Talos image factory signing keys
 - `/etc/etincelle/secrets/caddy.env` — Cloudflare API token for ACME DNS challenge
+- `/etc/etincelle/secrets/beszel-agent.env` — Beszel agent `TOKEN`
 - `/var/lib/tailscale/` — Tailscale node identity (created on first `tailscale up`)
 
 The image grants passwordless `sudo` to the `wheel` group via `/etc/sudoers.d/wheel-nopasswd`, so the user defined in `config.toml` (currently `etincelle`) can run privileged commands without a password.

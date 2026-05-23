@@ -28,10 +28,11 @@ RUN dnf -y install tailscale && dnf clean all
 RUN mkdir -p /etc/etincelle/secrets && chmod 700 /etc/etincelle/secrets && \
     mkdir -p /etc/image-factory/keys && chmod 750 /etc/image-factory/keys
 
-# Enable auto-update timers and tailscaled
+# Enable auto-update timers, podman API socket (for beszel-agent), and tailscaled
 RUN systemctl enable \
     bootc-fetch-apply-updates.timer \
     podman-auto-update.timer \
+    podman.socket \
     tailscaled.service
 
 RUN echo "etincelle" > /etc/hostname
