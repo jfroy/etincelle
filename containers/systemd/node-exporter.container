@@ -1,0 +1,22 @@
+[Unit]
+Description=Prometheus node exporter
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+AutoUpdate=registry
+ContainerName=node-exporter
+Image=quay.io/prometheus/node-exporter:latest
+Network=host
+# Allow reading host /, /proc, /sys under SELinux without relabeling.
+SecurityLabelType=container_runtime_t
+Volume=/:/host/root:ro,rslave
+Volume=/proc:/host/proc:ro,rslave
+Volume=/sys:/host/sys:ro,rslave
+Exec=--path.rootfs=/host/root --path.procfs=/host/proc --path.sysfs=/host/sys --web.listen-address=:9100
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

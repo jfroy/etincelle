@@ -11,6 +11,7 @@ Bootstrap utility server for the [flatops](https://github.com/jfroy/flatops) Kub
 | [Distribution registry](https://github.com/distribution/distribution) | OCI registry used as image factory artifact cache (`registry.etincelle.cloud`) |
 | [Caddy](https://caddyserver.com) | Reverse proxy with automatic TLS via Cloudflare DNS-01 |
 | [Beszel agent](https://beszel.dev) | System and container metrics agent reporting to an external hub |
+| [Prometheus node exporter](https://github.com/prometheus/node_exporter) | Host metrics on `:9100` (default collectors) |
 
 ## Build
 
