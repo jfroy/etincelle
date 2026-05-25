@@ -9,7 +9,7 @@ on:
       - system/**
       - caddy/Caddyfile
       - image-factory/config.yaml
-      - registry/config.yml
+      - zot/config.json
       - .github/workflows/bootc.yml
   workflow_dispatch:
 

@@ -14,7 +14,7 @@ COPY system/tmpfiles.d/etincelle.conf /usr/lib/tmpfiles.d/etincelle.conf
 # Service configurations (managed via git, baked into image)
 COPY caddy/Caddyfile /etc/caddy/Caddyfile
 COPY image-factory/config.yaml /etc/image-factory/config.yaml
-COPY registry/config.yml /etc/registry/config.yml
+COPY zot/config.json /etc/zot/config.json
 
 # Passwordless sudo for the wheel group
 COPY system/wheel-nopasswd /etc/sudoers.d/wheel-nopasswd

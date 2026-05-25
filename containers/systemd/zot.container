@@ -1,0 +1,18 @@
+[Unit]
+Description=zot OCI registry
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+AutoUpdate=registry
+ContainerName=zot
+Image=ghcr.io/project-zot/zot-linux-amd64:v2.1.17
+Network=host
+Volume=/var/zot/data:/var/lib/registry:rw,Z
+Volume=/etc/zot/config.json:/etc/zot/config.json:ro,z
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
