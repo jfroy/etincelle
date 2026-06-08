@@ -1,8 +1,8 @@
 [Unit]
 Description=Talos image factory
-After=network-online.target registry.service
+After=network-online.target zot.service
 Wants=network-online.target
-Requires=registry.service
+Requires=zot.service
 
 [Container]
 AutoUpdate=registry

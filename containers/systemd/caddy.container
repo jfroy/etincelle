@@ -1,6 +1,6 @@
 [Unit]
 Description=Caddy reverse proxy
-After=network-online.target discovery-service.service registry.service image-factory.service
+After=network-online.target
 Wants=network-online.target
 
 [Container]
