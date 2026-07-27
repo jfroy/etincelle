@@ -44,8 +44,16 @@ $SSH sudo chmod 600 /etc/etincelle/secrets/beszel-agent.env
 unset BESZEL_TOKEN
 echo "    Done."
 
+echo "--> Setting Trove agent token..."
+TROVE_TOKEN=$(op read "op://kantai/trove-etincelle/TOKEN")
+printf 'TROVE_TOKEN=%s\n' "${TROVE_TOKEN}" \
+    | $SSH "sudo tee /etc/etincelle/secrets/trove-agent.env > /dev/null"
+$SSH sudo chmod 600 /etc/etincelle/secrets/trove-agent.env
+unset TROVE_TOKEN
+echo "    Done."
+
 echo "==> Starting services..."
-$SSH sudo systemctl start caddy.service image-factory.service beszel-agent.service
+$SSH sudo systemctl start caddy.service image-factory.service beszel-agent.service trove-agent.service
 echo "    Done."
 
 echo "==> Joining Tailscale..."
