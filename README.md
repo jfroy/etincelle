@@ -64,7 +64,36 @@ One-time install on a fresh VM:
 
    This installs `/etc/image-factory/keys/*`, `/etc/etincelle/secrets/caddy.env`, `/etc/etincelle/secrets/beszel-agent.env`, and `/etc/etincelle/secrets/trove-agent.env` on the VM, starts `caddy.service`, `image-factory.service`, `beszel-agent.service`, and `trove-agent.service`, then prompts for a Tailscale auth key and runs `tailscale up`. Pass the key non-interactively with `TS_AUTHKEY=tskey-...`; submit an empty key to skip.
 
+## Updates
+
 Ongoing updates are automatic: pushes to `main` build a new image via GitHub Actions, and `bootc-fetch-apply-updates.timer` on the VM applies it on the next interval (reboots into the new deployment).
+
+Two independent mechanisms are at work:
+
+| Timer | Scope | Default schedule |
+|-------|-------|------------------|
+| `bootc-fetch-apply-updates.timer` | The OS image itself (`ghcr.io/jfroy/etincelle`), including quadlet units and baked-in service configs | `OnBootSec=1h`, then every `8h` with up to `2h` of jitter — worst case ~10h between checks |
+| `podman-auto-update.timer` | Container images referenced by quadlets marked `AutoUpdate=registry` | `OnCalendar=daily` with 15m jitter |
+
+Because quadlet units live in the OS image at `/etc/containers/systemd/`, adding or changing a service requires a bootc update and reboot, not just a container image pull.
+
+To apply a freshly built image immediately instead of waiting for the timer:
+
+```sh
+sudo bootc upgrade --check   # is a newer image available?
+sudo bootc upgrade --apply   # fetch, stage, and reboot into it
+```
+
+Other useful commands on the host:
+
+```sh
+sudo bootc status                                    # booted, staged, and rollback deployments
+sudo bootc upgrade                                   # stage without rebooting (applies on next boot)
+sudo bootc rollback && sudo systemctl reboot         # boot the previous deployment
+sudo podman auto-update                              # pull updated container images now
+systemctl list-timers 'bootc-*' 'podman-auto-update*'
+journalctl -u bootc-fetch-apply-updates.service      # diagnose failed pulls
+```
 
 ## Secrets and host state
 
