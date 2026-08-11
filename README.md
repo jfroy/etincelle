@@ -1,6 +1,6 @@
 # ✨ etincelle
 
-Bootstrap utility server for the [flatops](https://github.com/jfroy/flatops) Kubernetes cluster. Runs Fedora image-mode (bootc), managed via GitOps — push to `main` builds and publishes a new OS image to ghcr.io.
+Bootstrap utility server for the [kantai](https://github.com/jfroy/flatops) Kubernetes cluster. Runs Fedora image-mode (bootc), managed via GitOps — push to `main` builds and publishes a new OS image.
 
 ## Services
 
