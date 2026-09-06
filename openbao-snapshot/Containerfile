@@ -1,6 +1,6 @@
 # Backup job image for etincelle's OpenBao: python3 (script runtime), age
 # (encryption), rclone (R2 upload). Run by containers/systemd/openbao-snapshot.container.
-FROM docker.io/library/alpine:3.22
+FROM docker.io/library/alpine:3.24
 
 RUN apk add --no-cache python3 age rclone && \
     adduser -S -D -H -u 1000 snapshot
