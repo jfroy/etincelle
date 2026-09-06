@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily OpenBao backup to R2
+
+[Timer]
+Unit=openbao-snapshot.service
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -13,7 +13,9 @@ SecurityLabelType=container_runtime_t
 Volume=/:/host/root:ro,rslave
 Volume=/proc:/host/proc:ro,rslave
 Volume=/sys:/host/sys:ro,rslave
-Exec=--path.rootfs=/host/root --path.procfs=/host/proc --path.sysfs=/host/sys --web.listen-address=:9100
+# Textfile collector: scripts on the host drop *.prom files here (e.g. openbao-snapshot).
+Volume=/var/node-exporter/textfile:/host/textfile:ro
+Exec=--path.rootfs=/host/root --path.procfs=/host/proc --path.sysfs=/host/sys --collector.textfile.directory=/host/textfile --web.listen-address=:9100
 
 [Service]
 Restart=always

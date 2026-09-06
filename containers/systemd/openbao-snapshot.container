@@ -1,0 +1,35 @@
+[Unit]
+Description=OpenBao Raft snapshot and KV export to R2
+After=network-online.target openbao.service
+Wants=network-online.target
+
+[Container]
+AutoUpdate=registry
+ContainerName=openbao-snapshot
+Image=ghcr.io/jfroy/openbao-snapshot-etincelle:latest
+# Host networking: the job talks to 127.0.0.1:8200 and the AppRole is bound to
+# 127.0.0.1/32, so requests must originate from the host's loopback.
+Network=host
+Volume=/etc/openbao/backup-age.pub:/etc/openbao/backup-age.pub:ro,z
+# The image runs as an unprivileged user; `U` chowns the textfile directory to
+# it so the metric can be written (node-exporter reads it as root).
+Volume=/var/node-exporter/textfile:/var/node-exporter/textfile:rw,z,U
+# Plaintext snapshots only ever touch this tmpfs, never the container's overlay.
+Tmpfs=/tmp:mode=1777
+# Non-secret rclone remote settings for the `r2:` remote. Credentials, endpoint
+# and bucket come from the secrets env files (scripts/provision-secrets.sh).
+Environment=RCLONE_CONFIG=/dev/null
+Environment=RCLONE_CONFIG_R2_TYPE=s3
+Environment=RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+Environment=RCLONE_CONFIG_R2_REGION=auto
+Environment=RCLONE_CONFIG_R2_ACL=private
+Environment=RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+# Object name prefix in the bucket (the container's own hostname is a random id).
+Environment=OPENBAO_BACKUP_HOST=etincelle
+EnvironmentFile=/etc/etincelle/secrets/openbao-backup.env
+EnvironmentFile=/etc/etincelle/secrets/openbao-snapshot.env
+
+[Service]
+# One-shot job started by openbao-snapshot.timer; the container exits when done.
+# No RemainAfterExit: an active (exited) service would make later timer runs no-ops.
+Type=oneshot

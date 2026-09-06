@@ -2,6 +2,10 @@
 	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 }
 
+bao.etincelle.cloud {
+	reverse_proxy localhost:8200
+}
+
 ds.etincelle.cloud {
 	reverse_proxy h2c://localhost:4000
 }

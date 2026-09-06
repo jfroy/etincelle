@@ -52,6 +52,31 @@ tasks:
     cmds:
       - ./scripts/provision-secrets.sh {{.HOST}}
 
+  openbao-init:
+    desc: 'Initialise/configure OpenBao (HOST=<ip-or-host> JWKS=<cluster jwks.json> [SSH_USER=etincelle] [BAO_ADDR=https://bao.etincelle.cloud])'
+    requires:
+      vars: [HOST, JWKS]
+    vars:
+      SSH_USER: '{{.SSH_USER | default "etincelle"}}'
+      BAO_ADDR: '{{.BAO_ADDR | default "https://bao.etincelle.cloud"}}'
+    cmds:
+      - ./scripts/openbao-init.py --addr {{.BAO_ADDR}} --ssh-user {{.SSH_USER}} {{.HOST}} {{.JWKS}} {{if .OIDC_GROUP}}--oidc-group {{.OIDC_GROUP}}{{end}}
+
+  openbao-token:
+    desc: 'Mint a human OpenBao token from the 1Password recovery key ([TTL=1h] [POLICY=kantai-admin] [ROOT=1])'
+    cmds:
+      - ./scripts/openbao-token.py --addr {{.BAO_ADDR | default "https://bao.etincelle.cloud"}} --ttl {{.TTL | default "1h"}} --policy {{.POLICY | default "kantai-admin"}} {{if .ROOT}}--root{{end}}
+
+  openbao-snapshot-now:
+    desc: 'Run the OpenBao backup job on the host now (HOST=<ip-or-host> [SSH_USER=etincelle])'
+    requires:
+      vars: [HOST]
+    vars:
+      SSH_USER: '{{.SSH_USER | default "etincelle"}}'
+    cmds:
+      - ssh {{.SSH_USER}}@{{.HOST}} sudo systemctl start --wait openbao-snapshot.service
+      - ssh {{.SSH_USER}}@{{.HOST}} sudo journalctl -u openbao-snapshot.service -n 20 --no-pager
+
   clean:
     desc: Remove built disk images
     cmds:
