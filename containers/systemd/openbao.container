@@ -8,21 +8,14 @@ AutoUpdate=registry
 ContainerName=openbao
 Image=ghcr.io/openbao/openbao:2.6.2
 Network=host
-# The image runs as the unprivileged `openbao` user. The `U` flag makes podman
-# chown the bind-mounted data and audit directories to that user's UID/GID on
-# every start, so no UID is hard-coded here or in tmpfiles.d. The seal key file
-# is chowned to the same UID by scripts/provision-secrets.sh (a file bind mount
-# does not need the 0700 secrets directory to be traversable).
+# `U` chowns the data and audit directories to the image's `openbao` user; the
+# seal key file is chowned by scripts/provision-secrets.sh.
 Volume=/etc/openbao/config.hcl:/openbao/config/config.hcl:ro,z
 Volume=/etc/etincelle/secrets/openbao-seal.key:/openbao/secrets/seal.key:ro,z
 Volume=/var/openbao/data:/openbao/data:rw,Z,U
 Volume=/var/openbao/audit:/openbao/logs:rw,Z,U
-# The image entrypoint expands `server` to `bao server -config=/openbao/config`.
 # Operator CLI: sudo podman exec -e BAO_ADDR=http://127.0.0.1:8200 openbao bao status
-# (add -e BAO_TOKEN=... to authenticate).
 Exec=server
-# mlock is disabled in config.hcl (recommended with integrated Raft storage,
-# and the non-root container user cannot mlock anyway), so IPC_LOCK is not needed.
 
 [Service]
 Restart=always

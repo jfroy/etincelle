@@ -3,12 +3,9 @@
 
 ui = true
 
-# Recommended with integrated (Raft) storage: bbolt mmaps the database and
-# mlock would pin all of it in memory. The container user is unprivileged and
-# could not mlock anyway.
 disable_mlock = true
 
-# Public address (Caddy terminates TLS and proxies to the plaintext listener).
+# Public address (TLS terminated by Caddy)
 api_addr     = "https://bao.etincelle.cloud"
 cluster_addr = "https://127.0.0.1:8201"
 
@@ -23,9 +20,16 @@ storage "raft" {
   node_id = "etincelle"
 }
 
-# Auto-unseal with a static 32-byte key provisioned post-install at
-# /etc/etincelle/secrets/openbao-seal.key (64 hex characters, no trailing
-# newline). Rotate by adding previous_key/previous_key_id and bumping the id.
+# Audit log
+audit "file" "file" {
+  description = "Request audit log"
+  options {
+    file_path = "/openbao/logs/audit.log"
+  }
+}
+
+# Static-key auto-unseal; key provisioned by scripts/provision-secrets.sh
+# (64 hex chars, no trailing newline). Rotate via previous_key/previous_key_id.
 seal "static" {
   current_key_id = "etincelle-2026-09"
   current_key    = "file:///openbao/secrets/seal.key"

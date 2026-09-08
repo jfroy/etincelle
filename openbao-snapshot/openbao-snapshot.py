@@ -116,7 +116,7 @@ def main() -> None:
     textfile_dir = env("NODE_EXPORTER_TEXTFILE_DIR", "/var/node-exporter/textfile")
     bao = Bao(env("BAO_ADDR", "http://127.0.0.1:8200"))
 
-    with open(recipient_file) as f:  # refuse to run with the placeholder shipped in the repo
+    with open(recipient_file) as f:
         recipients = [line.strip() for line in f if re.fullmatch(r"age1[0-9a-z]+", line.strip())]
     if not recipients:
         sys.exit(f"ERROR: {recipient_file} holds no age recipient (replace the placeholder in openbao/backup-age.pub)")
@@ -129,7 +129,6 @@ def main() -> None:
     print("--> Logging in with AppRole...")
     bao.token = bao.json("POST", "auth/approle/login", {"role_id": role_id, "secret_id": secret_id})["auth"]["client_token"]
     try:
-        # Plaintext only ever lives in this 0700 temp dir (on the container's /tmp tmpfs).
         with tempfile.TemporaryDirectory(prefix="openbao-snapshot.") as tmp:
             print("--> Taking Raft snapshot...")
             snap = os.path.join(tmp, "raft.snap")

@@ -13,7 +13,7 @@ Steps (each checks before it creates, so re-running is safe):
   1. sys/init with one recovery key (static seal => recovery keys, not unseal keys);
      recovery key + root token stored in 1Password item openbao-etincelle. On re-runs
      a fresh root token is generated from the recovery key instead.
-  2. file audit device; KV v2 at kantai/ with max_versions=10.
+  2. KV v2 at kantai/ with max_versions=10 (the file audit device is declared in config.hcl).
   3. policies kantai-eso and openbao-snapshot.
   4. jwt auth with static validation keys from the JWKS; role kantai-eso.
   5. oidc auth against Pocket ID (item openbao-oidc: client-id, client-secret; skipped
@@ -41,7 +41,6 @@ DEFAULT_OIDC_ISSUER = "https://pid.kantai.xyz"
 KV_MOUNT = "kantai"
 ESO_SUBJECT = "system:serviceaccount:external-secrets:external-secrets"
 SNAPSHOT_ENV = "/etc/etincelle/secrets/openbao-snapshot.env"
-AUDIT_PATH = "/openbao/logs/audit.log"
 
 POLICIES = {
     "kantai-eso": f"""# external-secrets operator on the kantai cluster: read everything, write only
@@ -146,11 +145,9 @@ def configure_oidc(bao: Bao, issuer: str, group: str | None) -> None:
 
 
 def configure(bao: Bao, pems: list[str], host: str, ssh_user: str, oidc_issuer: str, oidc_group: str | None) -> None:
-    print("--> Enabling file audit device...")
-    if bao.has("sys/audit", "file/"):
-        print("    Already enabled.")
-    else:
-        bao.write("sys/audit/file", {"type": "file", "options": {"file_path": AUDIT_PATH}})
+    # The file audit device is declared in openbao/config.hcl.
+    if not bao.has("sys/audit", "file/"):
+        print("    WARN: no file audit device is enabled; check the audit stanza in openbao/config.hcl")
 
     print(f"--> Mounting KV v2 at {KV_MOUNT}/ ...")
     if bao.has("sys/mounts", f"{KV_MOUNT}/"):
@@ -178,7 +175,7 @@ def configure(bao: Bao, pems: list[str], host: str, ssh_user: str, oidc_issuer: 
     print("--> Configuring approle auth for openbao-snapshot...")
     if not bao.has("sys/auth", "approle/"):
         bao.write("sys/auth/approle", {"type": "approle"})
-    bao.write("auth/approle/role/openbao-snapshot", {  # only usable from the host itself
+    bao.write("auth/approle/role/openbao-snapshot", {
         "token_policies": ["openbao-snapshot"], "token_ttl": "15m", "token_max_ttl": "30m",
         "token_bound_cidrs": ["127.0.0.1/32"], "secret_id_bound_cidrs": ["127.0.0.1/32"],
         "secret_id_ttl": 0, "secret_id_num_uses": 0,

@@ -127,7 +127,7 @@ sudo podman exec -e BAO_ADDR=http://127.0.0.1:8200 -e BAO_TOKEN=... openbao bao 
 
 | Object | Detail |
 |--------|--------|
-| Audit device | `file` at `/openbao/logs/audit.log` (host: `/var/openbao/audit/audit.log`) |
+| Audit device | declared in `config.hcl` (`audit "file" "file"`, `/openbao/logs/audit.log`, host `/var/openbao/audit/audit.log`) |
 | KV v2 mount | `kantai/`, `max_versions=10` |
 | Policy `kantai-eso` | read+list on `kantai/data/*` and `kantai/metadata/*`; create/update/read/delete/list under `kantai/data/generated/*` and `kantai/metadata/generated/*` (PushSecret) |
 | Policy `openbao-snapshot` | `read` on `sys/storage/raft/snapshot`; read+list on `kantai/*` |
