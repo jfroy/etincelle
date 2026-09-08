@@ -63,7 +63,7 @@ tasks:
       - ./scripts/openbao-init.py --addr {{.BAO_ADDR}} --ssh-user {{.SSH_USER}} {{.HOST}} {{.JWKS}} {{if .OIDC_GROUP}}--oidc-group {{.OIDC_GROUP}}{{end}}
 
   openbao-token:
-    desc: 'Mint a human OpenBao token from the 1Password recovery key ([TTL=1h] [POLICY=kantai-admin] [ROOT=1])'
+    desc: 'Mint a human OpenBao token from the root token in 1Password ([TTL=1h] [POLICY=kantai-admin] [ROOT=1])'
     cmds:
       - ./scripts/openbao-token.py --addr {{.BAO_ADDR | default "https://bao.etincelle.cloud"}} --ttl {{.TTL | default "1h"}} --policy {{.POLICY | default "kantai-admin"}} {{if .ROOT}}--root{{end}}
 

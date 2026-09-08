@@ -11,8 +11,8 @@ vault, and ssh access to the host. All OpenBao calls go over its HTTP API.
 
 Steps (each checks before it creates, so re-running is safe):
   1. sys/init with one recovery key (static seal => recovery keys, not unseal keys);
-     recovery key + root token stored in 1Password item openbao-etincelle. On re-runs
-     a fresh root token is generated from the recovery key instead.
+     recovery key + root token stored in 1Password item openbao-etincelle; re-runs
+     authenticate with that root token.
   2. KV v2 at kantai/ with max_versions=10 (the file audit device is declared in config.hcl).
   3. policies kantai-eso and openbao-snapshot.
   4. jwt auth with static validation keys from the JWKS; role kantai-eso.
@@ -21,7 +21,6 @@ Steps (each checks before it creates, so re-running is safe):
   6. approle auth; role openbao-snapshot; its role-id/secret-id installed in
      /etc/etincelle/secrets/openbao-snapshot.env on the host and stored in 1Password
      item openbao-snapshot-etincelle for re-provisioning.
-  7. the root token is revoked (mint a new token any time with `task openbao-token`).
 """
 from __future__ import annotations
 
@@ -30,10 +29,9 @@ import base64
 import json
 import subprocess
 import sys
-import time
 
-from openbaolib import (DEFAULT_ADDR, OP_ITEM, OP_VAULT, Bao, BaoError, generate_root, op, op_read,
-                        op_set, wait_unsealed)
+from openbaolib import (DEFAULT_ADDR, OP_ITEM, OP_VAULT, Bao, BaoError, op, op_read, op_set,
+                        root_token_from_1password, wait_unsealed)
 
 OP_SNAPSHOT_ITEM = "openbao-snapshot-etincelle"
 OP_OIDC_ITEM = "openbao-oidc"
@@ -66,6 +64,10 @@ path "sys/storage/raft/snapshot" {{ capabilities = ["read"] }}
 path "{KV_MOUNT}/*"              {{ capabilities = ["read", "list"] }}
 """,
 }
+
+
+def ssh(host: str, user: str, command: str, stdin: str | None = None, check: bool = True) -> int:
+    return subprocess.run(["ssh", f"{user}@{host}", command], input=stdin, text=True, check=check).returncode
 
 
 def jwks_to_pems(jwks: dict) -> list[str]:
@@ -103,18 +105,16 @@ def jwks_to_pems(jwks: dict) -> list[str]:
 
 
 def obtain_root_token(bao: Bao) -> str:
-    if not bao.read("sys/seal-status").get("initialized"):
-        print("--> Running sys/init (recovery_shares=1, recovery_threshold=1)...")
-        init = bao.request("PUT", "sys/init", {"recovery_shares": 1, "recovery_threshold": 1})
-        recovery_key, root_token = init["recovery_keys_base64"][0], init["root_token"]
-        print(f"--> Storing recovery key and root token in 1Password ({OP_VAULT}/{OP_ITEM})...")
-        op_set(OP_ITEM, {"recovery-key": recovery_key, "root-token": root_token})
-        print("    Done.")
-        return root_token
-    print("--> Already initialised; generating a root token from the recovery key...")
-    token = generate_root(bao, op("read", f"op://{OP_VAULT}/{OP_ITEM}/recovery-key"))
+    if bao.read("sys/seal-status").get("initialized"):
+        print("--> Already initialised; using the root token from 1Password...")
+        return root_token_from_1password(bao)
+    print("--> Running sys/init (recovery_shares=1, recovery_threshold=1)...")
+    init = bao.request("PUT", "sys/init", {"recovery_shares": 1, "recovery_threshold": 1})
+    recovery_key, root_token = init["recovery_keys_base64"][0], init["root_token"]
+    print(f"--> Storing recovery key and root token in 1Password ({OP_VAULT}/{OP_ITEM})...")
+    op_set(OP_ITEM, {"recovery-key": recovery_key, "root-token": root_token})
     print("    Done.")
-    return token
+    return root_token
 
 
 def configure_oidc(bao: Bao, issuer: str, group: str | None) -> None:
@@ -212,10 +212,6 @@ def main() -> None:
         print("--> Waiting for auto-unseal...")
         wait_unsealed(bao)
         configure(bao, pems, args.host, args.ssh_user, args.oidc_issuer, args.oidc_group or None)
-        print("--> Revoking the root token...")
-        bao.write("auth/token/revoke-self")
-        op_set(OP_ITEM, {"root-token": f"revoked {time.strftime('%Y-%m-%d')}; use 'task openbao-token' "
-                                       "(mints from the recovery key)"})
     except BaoError as e:
         sys.exit(f"ERROR: {e}")
     except subprocess.CalledProcessError as e:

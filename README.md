@@ -134,7 +134,7 @@ sudo podman exec -e BAO_ADDR=http://127.0.0.1:8200 -e BAO_TOKEN=... openbao bao 
 | Auth `jwt` | Static validation keys (`jwt_validation_pubkeys`) converted from the cluster JWKS — no callback to the cluster. Role `kantai-eso`: `role_type=jwt`, `bound_audiences=["openbao"]`, `bound_subject=system:serviceaccount:external-secrets:external-secrets`, `user_claim=sub`, `token_policies=kantai-eso`, `token_ttl=1h` |
 | Auth `approle` | Role `openbao-snapshot` (policy `openbao-snapshot`, 15m tokens, bound to `127.0.0.1/32`); role-id/secret-id written to `/etc/etincelle/secrets/openbao-snapshot.env` and to the 1Password item `openbao-snapshot-etincelle` |
 
-Every step checks before it creates, so re-running the script is the way to re-apply policies or load a rotated cluster JWKS. The root token is revoked at the end of the run: on re-runs (and for break-glass access) a fresh one is generated from the recovery key via `sys/generate-root` (the script does this automatically; by hand: `bao operator generate-root`). The only ssh step is installing the AppRole env file on the host.
+Every step checks before it creates, so re-running the script is the way to re-apply policies or load a rotated cluster JWKS. Re-runs authenticate with the root token stored in 1Password; it is never revoked, since OpenBao ≥ 2.5.3 no longer offers an unauthenticated way to mint a root token from the recovery key (a replacement can be created from any sudo token with `bao token create -policy=root`). The only ssh step is installing the AppRole env file on the host.
 
 The external-secrets `ClusterSecretStore` on the cluster should use the `vault` provider with `server: https://bao.etincelle.cloud`, `path: kantai`, `version: v2`, and `auth.jwt` with `role: kantai-eso` and a `kubernetesServiceAccountToken` for service account `external-secrets/external-secrets` with `audiences: [openbao]`. Rotating the cluster's service-account signing key requires re-running `task openbao-init` with the new JWKS.
 
@@ -143,7 +143,7 @@ The external-secrets `ClusterSecretStore` on the cluster should use the `vault` 
 Two ways in, both granting the `kantai-admin` policy (full control of `kantai/*`, read-only on what the UI needs):
 
 - **OIDC via Pocket ID** — the everyday path, but it depends on the kantai cluster being up. One-time setup in Pocket ID: create an OIDC client named *OpenBao* with callback URLs `https://bao.etincelle.cloud/ui/vault/auth/oidc/oidc/callback` and `http://localhost:8250/oidc/callback` (the latter for `bao login -method=oidc`), restrict it to the user groups that should administer secrets, and store its credentials in the 1Password item `openbao-oidc` (fields `client-id`, `client-secret`). `task openbao-init` then mounts `oidc/` against `https://pid.kantai.xyz` with role `admin` (`user_claim: email`, scopes `openid email profile groups`, 8 h tokens); pass `OIDC_GROUP=<group>` to additionally bind the role to a Pocket ID group. In the UI pick method *OIDC* (mount path `oidc`); from a workstation with the `bao` CLI installed, `BAO_ADDR=https://bao.etincelle.cloud bao login -method=oidc` (it opens the browser; the host wrapper cannot).
-- **Token from the recovery key** — works with the cluster down. `task openbao-token` (`TTL=1h`, `POLICY=kantai-admin`, or `ROOT=1` for an unscoped root token) reads the recovery key from 1Password, mints a root token, uses it to create an orphan token with that policy and TTL, revokes the root token, and prints only the new token, so `export BAO_TOKEN=$(task --silent openbao-token)` works. Paste it into the UI's *Token* method or use it with `bao`.
+- **Token from 1Password** — works with the cluster down. `task openbao-token` (`TTL=1h`, `POLICY=kantai-admin`, or `ROOT=1` to print the stored root token) uses the root token in 1Password to create an orphan token with that policy and TTL and prints only the new token, so `export BAO_TOKEN=$(task --silent openbao-token)` works. Paste it into the UI's *Token* method or use it with `bao`.
 
 ### Backups
 
@@ -180,7 +180,7 @@ On a fresh VM (or after losing `/var/openbao`):
    sudo systemctl restart openbao.service && bao status
    ```
 
-   After the restore the server holds the snapshot's data, policies and auth config, and the recovery key from 1Password (item `openbao-etincelle`) is the valid one again. Re-run `task provision` to reinstall `openbao-snapshot.env` (or `task openbao-init` to mint new AppRole credentials), then `shred -u /tmp/raft.snap` on the host.
+   After the restore the server holds the snapshot's data, policies and auth config, and the recovery key and root token from 1Password (item `openbao-etincelle`) are the valid ones again. Re-run `task provision` to reinstall `openbao-snapshot.env` (or `task openbao-init` to mint new AppRole credentials), then `shred -u /tmp/raft.snap` on the host.
 
 The `kv/*.json.age` logical exports are a last resort for when a Raft snapshot cannot be restored (e.g. a lost seal key): decrypt one and `bao kv put` each entry into a freshly initialised server.
 
@@ -188,7 +188,7 @@ The `kv/*.json.age` logical exports are a last resort for when a Raft snapshot c
 
 | Item | Fields | Purpose |
 |------|--------|---------|
-| `openbao-etincelle` | `seal-key` (64 hex chars), `recovery-key`, `root-token` (revoked after init) | Unseal the Raft data; generate a new root token (`bao operator generate-root`) |
+| `openbao-etincelle` | `seal-key` (64 hex chars), `recovery-key`, `root-token` | Unseal the Raft data; administer OpenBao (`task openbao-token`); the recovery key is for rekey/recovery operations |
 | `openbao-backup-r2` | `access-key-id`, `secret-access-key`, `endpoint` (`https://<account-id>.r2.cloudflarestorage.com`), `bucket` | rclone access to the backup bucket |
 | `openbao-backup-age` | age private key (`AGE-SECRET-KEY-...`) | Decrypt backups (the public recipient is `openbao/backup-age.pub`) |
 | `openbao-snapshot-etincelle` | `role-id`, `secret-id` | AppRole used by the backup job (regenerable with `task openbao-init`) |

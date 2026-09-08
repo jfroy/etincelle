@@ -1,7 +1,6 @@
 """Shared helpers for the openbao-*.py scripts: HTTP client, 1Password CLI, root-token minting."""
 from __future__ import annotations
 
-import base64
 import json
 import subprocess
 import sys
@@ -83,32 +82,20 @@ def wait_unsealed(bao: Bao) -> None:
     sys.exit("ERROR: server still sealed; check the seal key and 'journalctl -u openbao'")
 
 
-def generate_root(bao: Bao, recovery_key: str) -> str:
-    """Mint a root token from the recovery key (sys/generate-root, OTP-XOR encoded)."""
-    try:
-        bao.delete("sys/generate-root/attempt")  # cancel any stale attempt
-    except BaoError:
-        pass
-    attempt = bao.write("sys/generate-root/attempt")
-    otp = attempt["otp"]
-    result = bao.write("sys/generate-root/update", {"key": recovery_key, "nonce": attempt["nonce"]})
-    if not result.get("complete"):
-        sys.exit("ERROR: generate-root did not complete with a single recovery key")
-    encoded = result.get("encoded_token") or result["encoded_root_token"]
-    raw = base64.b64decode(encoded.rstrip("=") + "=" * (-len(encoded.rstrip("=")) % 4))
-    if len(raw) != len(otp):
-        sys.exit("ERROR: encoded token / OTP length mismatch")
-    return bytes(a ^ b for a, b in zip(raw, otp.encode())).decode()
-
-
 def root_token_from_1password(bao: Bao) -> str:
-    """Mint a root token using the recovery key stored in 1Password (server must be initialised)."""
+    """The root token stored by openbao-init at sys/init time (server must be initialised)."""
     if not bao.read("sys/seal-status").get("initialized"):
         sys.exit("ERROR: OpenBao is not initialised; run 'task openbao-init' first")
-    recovery_key = op_read(f"op://{OP_VAULT}/{OP_ITEM}/recovery-key")
-    if not recovery_key:
-        sys.exit(f"ERROR: no recovery key at op://{OP_VAULT}/{OP_ITEM}/recovery-key")
-    return generate_root(bao, recovery_key)
+    token = op_read(f"op://{OP_VAULT}/{OP_ITEM}/root-token")
+    if not token or token.startswith("revoked"):
+        sys.exit(f"ERROR: no usable root token at op://{OP_VAULT}/{OP_ITEM}/root-token")
+    bao.token = token
+    try:
+        bao.read("auth/token/lookup-self")
+    except BaoError as e:
+        sys.exit(f"ERROR: stored root token rejected ({e}); create a new one from a sudo token "
+                 "with 'bao token create -policy=root' and update the 1Password item")
+    return token
 
 
 def print_err(msg: str) -> None:
