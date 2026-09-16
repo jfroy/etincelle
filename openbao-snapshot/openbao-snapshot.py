@@ -26,6 +26,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 METRIC = "openbao_snapshot"
@@ -45,7 +46,8 @@ class Bao:
     def request(self, method: str, path: str, data: dict | None = None):
         headers = {"X-Vault-Token": self.token} if self.token else {}
         body = json.dumps(data).encode() if data is not None else None
-        req = urllib.request.Request(f"{self.addr}/v1/{path}", data=body, method=method, headers=headers)
+        url = f"{self.addr}/v1/{urllib.parse.quote(path)}"
+        req = urllib.request.Request(url, data=body, method=method, headers=headers)
         return urllib.request.urlopen(req, timeout=120)
 
     def json(self, method: str, path: str, data: dict | None = None) -> dict:
