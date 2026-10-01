@@ -6,7 +6,7 @@ Wants=network-online.target
 [Container]
 AutoUpdate=registry
 ContainerName=openbao
-Image=ghcr.io/openbao/openbao:2.6.2
+Image=ghcr.io/openbao/openbao:2.7.1
 Network=host
 # `U` chowns the data and audit directories to the image's `openbao` user; the
 # seal key file is chowned by scripts/provision-secrets.sh.
